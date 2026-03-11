@@ -1,14 +1,22 @@
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from bson import ObjectId
 from app.database import get_db
+
+EXCLUDE_OTHERS = {"category": {"$ne": "others"}}
+
+
+def _recent_filter() -> dict:
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+    return {"created_at": {"$gte": cutoff}}
 
 
 class NewsService:
 
     async def get_home_news(self, continent: Optional[str], keyword: Optional[str], limit: int) -> dict:
         db = get_db()
-        query = {}
+        query = {**EXCLUDE_OTHERS, **_recent_filter()}
         if continent:
             query["continent"] = continent
         if keyword:
@@ -20,6 +28,7 @@ class NewsService:
             "title": 1,
             "continent": 1,
             "category": 1,
+            "url": 1,
             "lat": 1,
             "lng": 1,
             "importance": 1,
@@ -28,7 +37,7 @@ class NewsService:
         })
         map_pins = await pin_cursor.to_list(length=200)
 
-        headline_cursor = db.news.find(query, {
+        headline_fields = {
             "_id": 0,
             "id": {"$toString": "$_id"},
             "title": 1,
@@ -37,8 +46,15 @@ class NewsService:
             "region": 1,
             "source": 1,
             "summary": 1,
-        }).sort("importance", -1).limit(limit)
-        top_headlines = await headline_cursor.to_list(length=limit)
+            "url": 1,
+        }
+        per_category = max(limit // 4, 2)
+        top_headlines = []
+        for cat in ("war", "economy", "disaster", "politics"):
+            cat_query = {**query, "category": cat}
+            cursor = db.news.find(cat_query, headline_fields).sort("importance", -1).limit(per_category)
+            articles = await cursor.to_list(length=per_category)
+            top_headlines.extend(articles)
 
         return {"map_pins": map_pins, "top_headlines": top_headlines}
 
@@ -47,7 +63,7 @@ class NewsService:
         keyword: Optional[str], sort: Optional[str], limit: Optional[int],
     ) -> dict:
         db = get_db()
-        query = {"category": category}
+        query = {"category": category, **_recent_filter()}
         if continent:
             query["continent"] = continent
         if keyword:
@@ -63,6 +79,8 @@ class NewsService:
             "summary": 1,
             "country": 1,
             "continent": 1,
+            "category": 1,
+            "url": 1,
             "lat": 1,
             "lng": 1,
             "importance": 1,
@@ -81,7 +99,7 @@ class NewsService:
         keyword: Optional[str], limit: Optional[int],
     ) -> dict:
         db = get_db()
-        query = {"continent": continent}
+        query = {"continent": continent, **EXCLUDE_OTHERS, **_recent_filter()}
         if category:
             query["category"] = category
         if keyword:
@@ -93,6 +111,7 @@ class NewsService:
             "title": 1,
             "category": 1,
             "source": 1,
+            "url": 1,
             "lat": 1,
             "lng": 1,
             "importance": 1,
@@ -111,7 +130,7 @@ class NewsService:
         category: Optional[str], limit: int, page: int,
     ) -> dict:
         db = get_db()
-        query = {"$text": {"$search": query_text}}
+        query = {"$text": {"$search": query_text}, **EXCLUDE_OTHERS, **_recent_filter()}
         if continent:
             query["continent"] = continent
         if category:
@@ -128,6 +147,7 @@ class NewsService:
             "continent": 1,
             "source": 1,
             "summary": 1,
+            "url": 1,
             "lat": 1,
             "lng": 1,
             "importance": 1,
@@ -154,6 +174,7 @@ class NewsService:
                 "region": 1,
                 "category": 1,
                 "keywords": 1,
+                "url": 1,
                 "lat": 1,
                 "lng": 1,
                 "importance": 1,
