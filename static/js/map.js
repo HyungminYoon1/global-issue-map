@@ -4,7 +4,7 @@ const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM<
 const PIN_RADIUS = { large: 14, medium: 10, small: 7 };
 
 const CATEGORY_LABELS = {
-  war: '전쟁', economy: '경제', disaster: '자연재해', politics: '정치'
+  war: '전쟁', economy: '경제', disaster: '자연재해', politics: '정치', others: '기타'
 };
 
 const CONTINENTS = [

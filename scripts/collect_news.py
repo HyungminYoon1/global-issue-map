@@ -29,6 +29,9 @@ load_dotenv()
 
 from app.services.news_sources import (
     GdeltSource,
+    NewsDataSource,
+    GNewsSource,
+    QuotaExhausted,
     CATEGORY_KEYWORDS,
     PIN_COLORS,
     _pin_size,
@@ -37,6 +40,7 @@ from app.services.news_sources import (
 CATEGORIES = list(CATEGORY_KEYWORDS.keys())
 
 PRIMARY = GdeltSource()
+FALLBACK_CHAIN = [NewsDataSource(), GNewsSource()]
 
 
 def _title_words(title: str) -> set:
@@ -77,13 +81,28 @@ def calc_importance(articles: list[dict]) -> list[dict]:
 
 
 async def collect_category(category: str, client: httpx.AsyncClient) -> list[dict]:
+    all_articles = []
+
     try:
         articles = await PRIMARY.fetch(category, client)
+        all_articles.extend(articles)
         print(f"  [GDELT] {category}: {len(articles)}건")
-        return articles
     except Exception as e:
         print(f"  [GDELT] {category}: 실패 - {e}")
-        return []
+
+    if not all_articles:
+        for source in FALLBACK_CHAIN:
+            try:
+                articles = await source.fetch(category, client)
+                all_articles.extend(articles)
+                print(f"  [{source.name}] {category}: {len(articles)}건")
+                break
+            except QuotaExhausted:
+                print(f"  [{source.name}] {category}: 할당량 소진 → 다음 소스로 폴백")
+            except Exception as e:
+                print(f"  [{source.name}] {category}: 실패 ({e}) → 다음 소스로 폴백")
+
+    return all_articles
 
 
 TRANSLATE_PROMPT = """다음 뉴스 기사들에 대해 두 가지 작업을 수행하세요:
