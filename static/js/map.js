@@ -1,7 +1,7 @@
 const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
 
-const PIN_RADIUS = { large: 10, medium: 7, small: 4 };
+const PIN_RADIUS = { large: 14, medium: 10, small: 7 };
 
 const CATEGORY_LABELS = {
   war: '전쟁', economy: '경제', disaster: '자연재해', politics: '정치'
@@ -30,9 +30,31 @@ function createMap(elementId) {
   return map;
 }
 
+function spreadOverlapping(pins) {
+  const OFFSET = 1.5;
+  const coordCount = {};
+  pins.forEach(p => {
+    const key = `${p.lat},${p.lng}`;
+    coordCount[key] = (coordCount[key] || 0) + 1;
+  });
+
+  const coordIdx = {};
+  return pins.map(p => {
+    const key = `${p.lat},${p.lng}`;
+    const total = coordCount[key];
+    if (total <= 1) return p;
+
+    const idx = coordIdx[key] = (coordIdx[key] || 0) + 1;
+    const angle = (2 * Math.PI * (idx - 1)) / total;
+    return { ...p, lat: p.lat + OFFSET * Math.cos(angle), lng: p.lng + OFFSET * Math.sin(angle) };
+  });
+}
+
 function addPins(map, pins, onClick) {
+  const spread = spreadOverlapping(pins);
   const markers = [];
-  pins.forEach(pin => {
+  spread.forEach((pin, i) => {
+    const original = pins[i];
     const radius = PIN_RADIUS[pin.pin_size] || PIN_RADIUS.medium;
     const opacity = pin.pin_size === 'large' ? 1.0 : pin.pin_size === 'medium' ? 0.8 : 0.6;
     const marker = L.circleMarker([pin.lat, pin.lng], {
@@ -45,15 +67,24 @@ function addPins(map, pins, onClick) {
     }).addTo(map);
 
     marker.bindPopup(`
-      <div class="popup-title">${pin.title}</div>
+      <div class="popup-title">${pin.url ? `<a href="${pin.url}" target="_blank" rel="noopener">${pin.title}</a>` : pin.title}</div>
       <div class="popup-meta">${CATEGORY_LABELS[pin.category] || pin.category}</div>
     `);
 
+    marker.on('mouseover', function () {
+      this.setRadius(radius + 4);
+      this.setStyle({ fillOpacity: 1, weight: 2 });
+    });
+    marker.on('mouseout', function () {
+      this.setRadius(radius);
+      this.setStyle({ fillOpacity: opacity, weight: 1 });
+    });
+
     if (onClick) {
-      marker.on('click', () => onClick(pin));
+      marker.on('click', () => onClick(original));
     }
 
-    marker._pinData = pin;
+    marker._pinData = original;
     markers.push(marker);
   });
   return markers;

@@ -48,7 +48,7 @@
           <span class="badge badge-${h.category}">${CATEGORY_LABELS[h.category] || h.category}</span>
           <span class="card-source">${h.source} · ${h.continent}</span>
         </div>
-        <h3>${h.title}</h3>
+        <h3>${h.url ? `<a href="${h.url}" target="_blank" rel="noopener">${h.title}</a>` : h.title}</h3>
         <p>${h.summary || ''}</p>
       </div>
     `).join('');

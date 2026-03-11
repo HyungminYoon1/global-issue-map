@@ -394,3 +394,20 @@ body {
   color: var(--text-primary) !important;
   border-color: var(--border) !important;
 }
+
+/* 기사 원문 링크 */
+.headline-card h3 a,
+.article-item h4 a,
+.detail-title a,
+.popup-title a {
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.headline-card h3 a:hover,
+.article-item h4 a:hover,
+.detail-title a:hover,
+.popup-title a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}

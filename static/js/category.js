@@ -48,7 +48,7 @@
         <div class="item-header">
           <span class="badge badge-${a.category}">${CATEGORY_LABELS[a.category] || a.category}</span>
         </div>
-        <h4>${a.title}</h4>
+        <h4>${a.url ? `<a href="${a.url}" target="_blank" rel="noopener">${a.title}</a>` : a.title}</h4>
         <div class="item-meta">
           <span>${a.source}</span>
           <span>${a.continent}</span>
@@ -58,7 +58,8 @@
     `).join('');
 
     list.querySelectorAll('.article-item').forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', (e) => {
+        if (e.target.tagName === 'A') return;
         openDetail(item.dataset.id);
       });
     });
@@ -93,7 +94,12 @@
 
     try {
       const detail = await apiFetch(`/api/news/${articleId}`);
-      document.getElementById('detailTitle').textContent = detail.title;
+      const titleEl = document.getElementById('detailTitle');
+      if (detail.url) {
+        titleEl.innerHTML = `<a href="${detail.url}" target="_blank" rel="noopener">${detail.title}</a>`;
+      } else {
+        titleEl.textContent = detail.title;
+      }
 
       let html = `
         <div class="detail-meta">
@@ -164,7 +170,7 @@
       }
       section.innerHTML = html;
     } catch {
-      section.innerHTML = '';
+      section.innerHTML = '<div class="empty-state" style="padding:10px;color:var(--text-muted)">AI 분석을 불러올 수 없습니다.</div>';
     }
   }
 
