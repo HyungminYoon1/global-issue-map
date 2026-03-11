@@ -2,7 +2,7 @@
 뉴스 수집 스크립트.
 
 실행: python scripts/collect_news.py
-권장 주기: 6시간 (하루 4회)
+권장 주기: 3시간 (하루 8회)
 
 수집 흐름:
   1. GDELT (무제한, API 키 불필요) → 이벤트 감지 + 지리 좌표
@@ -252,7 +252,17 @@ async def main():
     unique = deduplicate(all_articles)
     print(f"중복 제거 후: {len(unique)}건")
 
-    scored = calc_importance(unique)
+    existing_urls = set()
+    urls_to_check = [a["url"] for a in unique if a.get("url")]
+    if urls_to_check:
+        cursor = db.news.find({"url": {"$in": urls_to_check}}, {"url": 1, "_id": 0})
+        async for doc in cursor:
+            existing_urls.add(doc["url"])
+
+    new_articles = [a for a in unique if a["url"] not in existing_urls]
+    print(f"DB 미존재 신규 기사: {len(new_articles)}건 (기존 {len(existing_urls)}건 스킵)")
+
+    scored = calc_importance(new_articles)
 
     print("\n한국어 번역 중...")
     translated = await translate_articles(scored)
