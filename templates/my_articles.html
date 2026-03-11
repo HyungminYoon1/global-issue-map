@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}나만의 기사 - Global Issue Map{% endblock %}
+
+{% block content %}
+<div class="my-articles-page">
+  <h1>나만의 기사</h1>
+
+  <div class="filter-bar">
+    <select class="filter-select" id="filterCategory">
+      <option value="">전체 카테고리</option>
+      <option value="war">전쟁</option>
+      <option value="economy">경제</option>
+      <option value="disaster">자연재해</option>
+      <option value="politics">정치</option>
+    </select>
+    <select class="filter-select" id="filterContinent">
+      <option value="">전체 대륙</option>
+      <option value="Asia">아시아</option>
+      <option value="Europe">유럽</option>
+      <option value="Africa">아프리카</option>
+      <option value="NorthAmerica">북미</option>
+      <option value="SouthAmerica">남미</option>
+      <option value="Oceania">오세아니아</option>
+    </select>
+    <select class="filter-select" id="filterSort">
+      <option value="latest">최신순</option>
+      <option value="category">카테고리순</option>
+    </select>
+  </div>
+
+  <div class="saved-grid" id="savedGrid"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/my_articles.js"></script>
+{% endblock %}

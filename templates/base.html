@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Global Issue Map{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/static/css/style.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="nav-logo">Global Issue Map</a>
+    <div class="nav-links">
+      <a href="/" class="nav-link {% if active == 'home' %}active{% endif %}">홈</a>
+      <a href="/war" class="nav-link {% if active == 'war' %}active{% endif %}">
+        <span class="cat-dot" style="background:#EF4444"></span>전쟁
+      </a>
+      <a href="/economy" class="nav-link {% if active == 'economy' %}active{% endif %}">
+        <span class="cat-dot" style="background:#16A34A"></span>경제
+      </a>
+      <a href="/disaster" class="nav-link {% if active == 'disaster' %}active{% endif %}">
+        <span class="cat-dot" style="background:#F97316"></span>자연재해
+      </a>
+      <a href="/politics" class="nav-link {% if active == 'politics' %}active{% endif %}">
+        <span class="cat-dot" style="background:#EAB308"></span>정치
+      </a>
+      <a href="/my-articles" class="nav-link {% if active == 'my-articles' %}active{% endif %}">나만의 기사</a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/static/js/map.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
