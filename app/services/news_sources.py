@@ -10,7 +10,7 @@ from app.geo import lookup_country
 
 logger = logging.getLogger(__name__)
 
-PIN_COLORS = {"war": "#EF4444", "economy": "#16A34A", "politics": "#EAB308", "disaster": "#F97316"}
+PIN_COLORS = {"war": "#EF4444", "economy": "#16A34A", "politics": "#EAB308", "disaster": "#F97316", "others": "#94a3b8"}
 
 CATEGORY_KEYWORDS = {
     "war": {

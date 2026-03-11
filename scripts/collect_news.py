@@ -5,12 +5,11 @@
 권장 주기: 6시간 (하루 4회)
 
 수집 흐름:
-  1. GDELT (1차, 무제한) → 이벤트 감지 + 지리 좌표
-  2. NewsData.io → GNews → Currents API (2차 체인, 할당량 소진 시 폴백)
-  3. 중복 제거 + 교차검증 기반 중요도 산정
-  4. gpt-4o-mini로 제목+요약 한국어 번역 (배치)
-  5. MongoDB upsert (url 기준 중복 방지)
-  6. 30일 초과 기사 자동 만료 (TTL 인덱스)
+  1. GDELT (무제한, API 키 불필요) → 이벤트 감지 + 지리 좌표
+  2. 중복 제거 + 중요도 산정
+  3. gpt-4o-mini로 한국어 번역 + 카테고리 재분류 (배치)
+  4. MongoDB upsert (url 기준 중복 방지)
+  5. 30일 초과 기사 자동 만료 (TTL 인덱스)
 """
 
 import asyncio
@@ -30,10 +29,6 @@ load_dotenv()
 
 from app.services.news_sources import (
     GdeltSource,
-    NewsDataSource,
-    GNewsSource,
-    CurrentsSource,
-    QuotaExhausted,
     CATEGORY_KEYWORDS,
     PIN_COLORS,
     _pin_size,
@@ -42,7 +37,6 @@ from app.services.news_sources import (
 CATEGORIES = list(CATEGORY_KEYWORDS.keys())
 
 PRIMARY = GdeltSource()
-SECONDARY_CHAIN = [NewsDataSource(), GNewsSource(), CurrentsSource()]
 
 
 def _title_words(title: str) -> set:
@@ -73,11 +67,9 @@ def deduplicate(articles: list[dict]) -> list[dict]:
 
 
 def calc_importance(articles: list[dict]) -> list[dict]:
-    """교차검증: 복수 소스에서 감지된 기사는 중요도 상향."""
+    """중요도 산정 (기본 2, 향후 확장 가능)."""
     for a in articles:
-        base = 2
-        source_bonus = min(a.get("_source_count", 1) - 1, 2)
-        a["importance"] = min(base + source_bonus, 5)
+        a["importance"] = 2
         a["pin_size"] = _pin_size(a["importance"])
         a.pop("_source_count", None)
         a.pop("_origin", None)
@@ -85,39 +77,31 @@ def calc_importance(articles: list[dict]) -> list[dict]:
 
 
 async def collect_category(category: str, client: httpx.AsyncClient) -> list[dict]:
-    all_articles = []
-
-    # 1차: GDELT (무제한)
     try:
-        gdelt_articles = await PRIMARY.fetch(category, client)
-        all_articles.extend(gdelt_articles)
-        print(f"  [GDELT] {category}: {len(gdelt_articles)}건")
+        articles = await PRIMARY.fetch(category, client)
+        print(f"  [GDELT] {category}: {len(articles)}건")
+        return articles
     except Exception as e:
         print(f"  [GDELT] {category}: 실패 - {e}")
-
-    # 2차: 폴백 체인 (첫 번째 성공 소스만 사용)
-    for source in SECONDARY_CHAIN:
-        try:
-            secondary_articles = await source.fetch(category, client)
-            all_articles.extend(secondary_articles)
-            print(f"  [{source.name}] {category}: {len(secondary_articles)}건")
-            break
-        except QuotaExhausted as e:
-            print(f"  [{source.name}] {category}: 할당량 소진 → 다음 소스로 폴백")
-            continue
-        except Exception as e:
-            print(f"  [{source.name}] {category}: 실패 ({e}) → 다음 소스로 폴백")
-            continue
-
-    return all_articles
+        return []
 
 
-TRANSLATE_PROMPT = """다음 뉴스 기사들의 제목(title)과 요약(summary)을 자연스러운 한국어로 번역하세요.
-번역만 하고 내용을 추가하거나 변경하지 마세요.
-summary가 빈 문자열이면 빈 문자열로 유지하세요.
+TRANSLATE_PROMPT = """다음 뉴스 기사들에 대해 두 가지 작업을 수행하세요:
+
+1. 제목(title)과 요약(summary)을 자연스러운 한국어로 번역하세요.
+   - 번역만 하고 내용을 추가하거나 변경하지 마세요.
+   - summary가 빈 문자열이면 빈 문자열로 유지하세요.
+
+2. 기사 내용을 분석하여 아래 5개 카테고리 중 가장 적합한 하나를 선택하세요:
+   - war: 국가 간 전쟁, 내전, 군사 충돌, 무력 분쟁, 조직적 테러(정치·종교적 목적의 테러 단체에 의한 공격), 군사 작전, 반군/무장 세력 간 교전
+     ※ 주의: 개인적 총격 사건, 강도, 살인, 폭행 등 일반 범죄·강력 범죄는 war가 아닙니다. 총기가 사용되었다고 해서 자동으로 war로 분류하지 마세요.
+   - economy: 경제, 무역, 금융, 주식, 환율, 물가, 기업 실적, 관세, 경기침체
+   - disaster: 자연재해, 기후, 환경 오염, 전염병, 대형 사고
+   - politics: 정치, 외교, 선거, 정상회담, 제재, 법안, 정부 정책
+   - others: 위 4개에 해당하지 않는 기사 (범죄, 사건사고, 연예, 스포츠, 라이프스타일 등)
 
 반드시 아래 JSON 형식으로만 응답하세요:
-{"translations": [{"idx": 0, "title": "한국어 제목", "summary": "한국어 요약"}, ...]}"""
+{"translations": [{"idx": 0, "title": "한국어 제목", "summary": "한국어 요약", "category": "war"}, ...]}"""
 
 BATCH_SIZE = 10
 
@@ -139,7 +123,12 @@ async def translate_articles(articles: list[dict]) -> list[dict]:
 
         items = []
         for i, a in enumerate(batch):
-            items.append({"idx": i, "title": a["title"], "summary": a.get("summary", "")})
+            items.append({
+                "idx": i,
+                "title": a["title"],
+                "summary": a.get("summary", ""),
+                "original_category": a.get("category", ""),
+            })
 
         try:
             resp = await client.chat.completions.create(
@@ -149,7 +138,7 @@ async def translate_articles(articles: list[dict]) -> list[dict]:
                     {"role": "user", "content": json.dumps(items, ensure_ascii=False)},
                 ],
                 temperature=0.3,
-                max_tokens=3000,
+                max_tokens=4000,
                 response_format={"type": "json_object"},
             )
 
@@ -167,6 +156,7 @@ async def translate_articles(articles: list[dict]) -> list[dict]:
                             items_list = v
                             break
 
+            valid_categories = {"war", "economy", "disaster", "politics", "others"}
             for item in items_list:
                 idx = item.get("idx", -1)
                 if 0 <= idx < len(batch):
@@ -174,6 +164,10 @@ async def translate_articles(articles: list[dict]) -> list[dict]:
                     batch[idx]["summary_en"] = batch[idx].get("summary", "")
                     batch[idx]["title"] = item["title"]
                     batch[idx]["summary"] = item.get("summary", "")
+                    new_cat = item.get("category", "")
+                    if new_cat in valid_categories:
+                        batch[idx]["category"] = new_cat
+                        batch[idx]["pin_color"] = PIN_COLORS.get(new_cat, "#94a3b8")
                     translated += 1
 
         except Exception as e:
@@ -182,7 +176,9 @@ async def translate_articles(articles: list[dict]) -> list[dict]:
         if start + BATCH_SIZE < len(articles):
             await asyncio.sleep(1)
 
+    reclassified = sum(1 for a in articles if a.get("category") == "others")
     print(f"[번역] {translated}/{len(articles)}건 한국어 번역 완료")
+    print(f"[분류] others로 재분류: {reclassified}건")
     return articles
 
 
