@@ -21,7 +21,8 @@ async def _run_collector():
         try:
             logger.info("뉴스 자동 수집 시작")
             from scripts.collect_news import main as collect_main
-            await collect_main()
+            from app.database import get_db
+            await collect_main(db=get_db())
             logger.info("뉴스 자동 수집 완료")
         except Exception as e:
             logger.error("뉴스 자동 수집 실패: %s", e)

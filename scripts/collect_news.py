@@ -230,11 +230,14 @@ async def ensure_indexes(db):
     await db.news.create_index([("published_at", -1)])
 
 
-async def main():
+async def main(db=None):
     print(f"=== 뉴스 수집 시작 ({datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}) ===")
 
-    client_db = AsyncIOMotorClient(os.getenv("MONGODB_URI"))
-    db = client_db[os.getenv("MONGODB_DB_NAME")]
+    own_client = None
+    if db is None:
+        own_client = AsyncIOMotorClient(os.getenv("MONGODB_URI"))
+        db = own_client[os.getenv("MONGODB_DB_NAME")]
+
     await ensure_indexes(db)
 
     all_articles = []
@@ -275,7 +278,8 @@ async def main():
     print(f"DB 전체 뉴스: {total}건")
     print("=== 수집 완료 ===")
 
-    client_db.close()
+    if own_client:
+        own_client.close()
 
 
 if __name__ == "__main__":
