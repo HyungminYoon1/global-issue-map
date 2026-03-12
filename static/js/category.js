@@ -31,31 +31,34 @@
       clearMarkers(markers);
       markers = addPins(map, data.articles, onPinClick);
       renderList(data.articles);
-      document.getElementById('articleCount').textContent = `${data.articles.length}건`;
+      document.getElementById('articleCount').textContent = `${data.articles.length}${t('articles_suffix')}`;
     } catch (e) {
-      showToast('데이터 로딩 실패', 'error');
+      showToast(t('load_failed'), 'error');
     }
   }
 
   function renderList(articles) {
     const list = document.getElementById('articleList');
     if (!articles.length) {
-      list.innerHTML = '<div class="empty-state">뉴스가 없습니다.</div>';
+      list.innerHTML = `<div class="empty-state">${t('no_articles')}</div>`;
       return;
     }
-    list.innerHTML = articles.map(a => `
+    list.innerHTML = articles.map(a => {
+      const title = articleTitle(a);
+      return `
       <div class="article-item" data-id="${a.id}">
         <div class="item-header">
           <span class="badge badge-${a.category}">${CATEGORY_LABELS[a.category] || a.category}</span>
         </div>
-        <h4>${a.url ? `<a href="${a.url}" target="_blank" rel="noopener">${a.title}</a>` : a.title}</h4>
+        <h4>${a.url ? `<a href="${a.url}" target="_blank" rel="noopener">${title}</a>` : title}</h4>
         <div class="item-meta">
           <span>${a.source}</span>
           <span>${a.continent}</span>
-          <span>중요도 ${a.importance}</span>
+          <span>${t('importance')} ${a.importance}</span>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
 
     list.querySelectorAll('.article-item').forEach(item => {
       item.addEventListener('click', (e) => {
@@ -86,19 +89,21 @@
     const body = document.getElementById('detailBody');
     const saveBtn = document.getElementById('saveBtn');
 
-    body.innerHTML = '<div class="empty-state">로딩 중...</div>';
+    body.innerHTML = `<div class="empty-state">${t('loading')}</div>`;
     saveBtn.disabled = false;
-    saveBtn.textContent = '기사 저장';
+    saveBtn.textContent = t('save_article');
     saveBtn.classList.remove('saved');
     panel.classList.add('open');
 
     try {
       const detail = await apiFetch(`/api/news/${articleId}`);
       const titleEl = document.getElementById('detailTitle');
+      const detailTitle = articleTitle(detail);
+      const detailSummary = articleSummary(detail);
       if (detail.url) {
-        titleEl.innerHTML = `<a href="${detail.url}" target="_blank" rel="noopener">${detail.title}</a>`;
+        titleEl.innerHTML = `<a href="${detail.url}" target="_blank" rel="noopener">${detailTitle}</a>`;
       } else {
-        titleEl.textContent = detail.title;
+        titleEl.textContent = detailTitle;
       }
 
       let html = `
@@ -108,7 +113,7 @@
           <span class="detail-meta-item">${detail.country}</span>
           <span class="detail-meta-item">${detail.published_at?.slice(0, 10) || ''}</span>
         </div>
-        <div class="detail-summary">${detail.summary}</div>
+        <div class="detail-summary">${detailSummary}</div>
       `;
 
       if (detail.keywords?.length) {
@@ -117,12 +122,12 @@
         </div>`;
       }
 
-      html += '<div id="aiSection"><div class="empty-state" style="padding:20px">AI 분석 로딩 중...</div></div>';
+      html += `<div id="aiSection"><div class="empty-state" style="padding:20px">${t('ai_loading')}</div></div>`;
       body.innerHTML = html;
 
       loadAiAnalysis(articleId);
     } catch (e) {
-      body.innerHTML = '<div class="empty-state">상세 정보를 불러올 수 없습니다.</div>';
+      body.innerHTML = `<div class="empty-state">${t('detail_failed')}</div>`;
     }
   }
 
@@ -136,28 +141,29 @@
       }
 
       const impactLabels = {
-        gold: '금', oil: '유가', stocks: '주식', exchange_rate: '환율'
+        gold: t('impact_gold'), oil: t('impact_oil'),
+        stocks: t('impact_stocks'), exchange_rate: t('impact_exchange_rate'),
       };
 
       let html = '';
       if (ai.interpretation) {
         html += `
           <div class="ai-section">
-            <h4>AI 해석</h4>
+            <h4>${t('ai_interpretation')}</h4>
             <div class="ai-text">${ai.interpretation}</div>
           </div>`;
       }
       if (ai.prediction) {
         html += `
           <div class="ai-section">
-            <h4>예상 동향</h4>
+            <h4>${t('ai_prediction')}</h4>
             <div class="ai-text">${ai.prediction}</div>
           </div>`;
       }
       if (ai.impact) {
         html += `
           <div class="ai-section">
-            <h4>미치는 영향</h4>
+            <h4>${t('ai_impact')}</h4>
             <div class="impact-grid">
               ${Object.entries(ai.impact).map(([k, v]) => `
                 <div class="impact-item">
@@ -170,7 +176,7 @@
       }
       section.innerHTML = html;
     } catch {
-      section.innerHTML = '<div class="empty-state" style="padding:10px;color:var(--text-muted)">AI 분석을 불러올 수 없습니다.</div>';
+      section.innerHTML = `<div class="empty-state" style="padding:10px;color:var(--text-muted)">${t('ai_failed')}</div>`;
     }
   }
 
@@ -188,12 +194,12 @@
     btn.disabled = true;
     try {
       await apiPost('/api/articles/save', { article_id: selectedArticleId });
-      btn.textContent = '저장 완료';
+      btn.textContent = t('saved');
       btn.classList.add('saved');
-      showToast('기사가 저장되었습니다.', 'success');
+      showToast(t('article_saved'), 'success');
     } catch {
       btn.disabled = false;
-      showToast('저장에 실패했습니다.', 'error');
+      showToast(t('save_failed'), 'error');
     }
   });
 

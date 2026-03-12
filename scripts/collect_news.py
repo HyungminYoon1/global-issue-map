@@ -7,16 +7,19 @@
 수집 흐름:
   1. GDELT (무제한, API 키 불필요) → 이벤트 감지 + 지리 좌표
   2. 중복 제거 + 중요도 산정
-  3. gpt-4o-mini로 한국어 번역 + 카테고리 재분류 (배치)
-  4. MongoDB upsert (url 기준 중복 방지)
-  5. 30일 초과 기사 자동 만료 (TTL 인덱스)
+  3. 기사 URL에서 리드 문단(300자) 추출 → 분류 정확도 향상
+  4. gpt-4o-mini로 한국어 번역 + 카테고리 재분류 (배치)
+  5. MongoDB upsert (url 기준 중복 방지)
+  6. 30일 초과 기사 자동 만료 (TTL 인덱스)
 """
 
 import asyncio
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 
 import httpx
 
@@ -105,19 +108,112 @@ async def collect_category(category: str, client: httpx.AsyncClient) -> list[dic
     return all_articles
 
 
+SNIPPET_MAX_CHARS = 300
+SNIPPET_CONCURRENCY = 5
+SNIPPET_TIMEOUT = 5
+
+
+class _ParagraphExtractor(HTMLParser):
+    """<p> 태그 안의 텍스트만 추출하는 경량 HTML 파서."""
+
+    def __init__(self):
+        super().__init__()
+        self._in_p = False
+        self._skip = 0
+        self._skip_tags = frozenset({"script", "style", "nav", "header", "footer", "aside"})
+        self.paragraphs: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self._skip_tags:
+            self._skip += 1
+        elif tag == "p" and self._skip == 0:
+            self._in_p = True
+
+    def handle_endtag(self, tag):
+        if tag in self._skip_tags:
+            self._skip = max(0, self._skip - 1)
+        elif tag == "p":
+            self._in_p = False
+
+    def handle_data(self, data):
+        if self._in_p and self._skip == 0:
+            text = data.strip()
+            if text:
+                self.paragraphs.append(text)
+
+
+def _extract_text(html: str, max_chars: int = SNIPPET_MAX_CHARS) -> str:
+    """HTML에서 meta description 또는 <p> 태그 텍스트를 추출."""
+    for pattern in (
+        r'<meta\s+(?:name="description"|property="og:description")\s+content="([^"]*)"',
+        r'<meta\s+content="([^"]*)"\s+(?:name="description"|property="og:description")',
+    ):
+        m = re.search(pattern, html[:5000], re.IGNORECASE)
+        if m and len(m.group(1).strip()) > 50:
+            return m.group(1).strip()[:max_chars]
+
+    parser = _ParagraphExtractor()
+    try:
+        parser.feed(html)
+    except Exception:
+        return ""
+    full = " ".join(parser.paragraphs)
+    return full[:max_chars]
+
+
+async def _fetch_one_snippet(url: str, client: httpx.AsyncClient,
+                             sem: asyncio.Semaphore) -> str:
+    async with sem:
+        try:
+            resp = await client.get(url, timeout=SNIPPET_TIMEOUT, follow_redirects=True)
+            if resp.status_code != 200:
+                return ""
+            return _extract_text(resp.text)
+        except Exception:
+            return ""
+
+
+async def fetch_snippets(articles: list[dict]) -> list[dict]:
+    """summary가 비어 있는 기사의 URL에서 리드 문단을 가져와 summary에 저장."""
+    targets = [(i, a["url"]) for i, a in enumerate(articles)
+               if not a.get("summary") and a.get("url")]
+
+    if not targets:
+        print("[본문] 추출 불필요 (모든 기사에 요약 있음)")
+        return articles
+
+    sem = asyncio.Semaphore(SNIPPET_CONCURRENCY)
+    async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"}) as client:
+        tasks = [_fetch_one_snippet(url, client, sem) for _, url in targets]
+        results = await asyncio.gather(*tasks)
+
+    filled = 0
+    for (idx, _), text in zip(targets, results):
+        if text:
+            articles[idx]["summary"] = text
+            filled += 1
+
+    print(f"[본문] {filled}/{len(targets)}건 리드 문단 추출 완료")
+    return articles
+
+
 TRANSLATE_PROMPT = """다음 뉴스 기사들에 대해 두 가지 작업을 수행하세요:
 
 1. 제목(title)과 요약(summary)을 자연스러운 한국어로 번역하세요.
    - 번역만 하고 내용을 추가하거나 변경하지 마세요.
    - summary가 빈 문자열이면 빈 문자열로 유지하세요.
 
-2. 기사 내용을 분석하여 아래 5개 카테고리 중 가장 적합한 하나를 선택하세요:
-   - war: 국가 간 전쟁, 내전, 군사 충돌, 무력 분쟁, 조직적 테러(정치·종교적 목적의 테러 단체에 의한 공격), 군사 작전, 반군/무장 세력 간 교전
-     ※ 주의: 개인적 총격 사건, 강도, 살인, 폭행 등 일반 범죄·강력 범죄는 war가 아닙니다. 총기가 사용되었다고 해서 자동으로 war로 분류하지 마세요.
-   - economy: 경제, 무역, 금융, 주식, 환율, 물가, 기업 실적, 관세, 경기침체
+2. 제목과 요약을 종합적으로 분석하여 아래 5개 카테고리 중 가장 적합한 하나를 선택하세요:
+   - war: 실제 군사 교전, 전투 행위, 군사 작전 수행, 무력 공격, 폭격, 포격, 미사일 발사 등 직접적 무력 충돌
+     ※ 주의: 개인적 총격 사건, 강도, 살인, 폭행 등 일반 범죄는 war가 아닙니다.
+     ※ 주의: UN 결의안, 평화 협상, 휴전 협정, 외교적 성명, 제재 결의, 국제기구 대응 등은 전쟁 관련 맥락이더라도 politics로 분류하세요.
+   - economy: 경제, 무역, 금융, 주식, 환율, 물가, 기업 실적, 관세, 경기침체, 유가, 에너지 시장
    - disaster: 자연재해, 기후, 환경 오염, 전염병, 대형 사고
-   - politics: 정치, 외교, 선거, 정상회담, 제재, 법안, 정부 정책
+   - politics: 정치, 외교, 선거, 정상회담, 제재, 법안, 정부 정책, UN/국제기구 결의, 외교적 대응, 평화 협상
    - others: 위 4개에 해당하지 않는 기사 (범죄, 사건사고, 연예, 스포츠, 라이프스타일 등)
+
+※ 분류 시 제목뿐 아니라 summary(기사 본문 발췌)의 내용을 반드시 함께 고려하세요.
+※ 전쟁 중 발생한 사건이라도, 기사의 주제가 외교·정치적 대응이면 politics, 경제적 영향이면 economy로 분류하세요.
 
 반드시 아래 JSON 형식으로만 응답하세요:
 {"translations": [{"idx": 0, "title": "한국어 제목", "summary": "한국어 요약", "category": "war"}, ...]}"""
@@ -266,6 +362,9 @@ async def main(db=None):
     print(f"DB 미존재 신규 기사: {len(new_articles)}건 (기존 {len(existing_urls)}건 스킵)")
 
     scored = calc_importance(new_articles)
+
+    print("\n기사 본문 추출 중...")
+    await fetch_snippets(scored)
 
     print("\n한국어 번역 중...")
     translated = await translate_articles(scored)

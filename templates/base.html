@@ -14,20 +14,24 @@
   <nav class="navbar">
     <a href="/" class="nav-logo">Global Issue Map</a>
     <div class="nav-links">
-      <a href="/" class="nav-link {% if active == 'home' %}active{% endif %}">홈</a>
+      <a href="/" class="nav-link {% if active == 'home' %}active{% endif %}"><span data-i18n="nav_home">홈</span></a>
       <a href="/war" class="nav-link {% if active == 'war' %}active{% endif %}">
-        <span class="cat-dot" style="background:#EF4444"></span>전쟁
+        <span class="cat-dot" style="background:#EF4444"></span><span data-i18n="nav_war">전쟁</span>
       </a>
       <a href="/economy" class="nav-link {% if active == 'economy' %}active{% endif %}">
-        <span class="cat-dot" style="background:#16A34A"></span>경제
+        <span class="cat-dot" style="background:#16A34A"></span><span data-i18n="nav_economy">경제</span>
       </a>
       <a href="/disaster" class="nav-link {% if active == 'disaster' %}active{% endif %}">
-        <span class="cat-dot" style="background:#F97316"></span>자연재해
+        <span class="cat-dot" style="background:#F97316"></span><span data-i18n="nav_disaster">자연재해</span>
       </a>
       <a href="/politics" class="nav-link {% if active == 'politics' %}active{% endif %}">
-        <span class="cat-dot" style="background:#EAB308"></span>정치
+        <span class="cat-dot" style="background:#EAB308"></span><span data-i18n="nav_politics">정치</span>
       </a>
-      <a href="/my-articles" class="nav-link {% if active == 'my-articles' %}active{% endif %}">나만의 기사</a>
+      <a href="/my-articles" class="nav-link {% if active == 'my-articles' %}active{% endif %}"><span data-i18n="nav_my_articles">나만의 기사</span></a>
+    </div>
+    <div class="lang-toggle" id="langToggle">
+      <button class="lang-btn" data-lang="ko">KR</button>
+      <button class="lang-btn" data-lang="en">EN</button>
     </div>
   </nav>
 

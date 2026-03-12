@@ -32,26 +32,30 @@
       markers = addPins(map, data.map_pins);
       renderHeadlines(data.top_headlines);
     } catch (e) {
-      showToast('데이터 로딩 실패', 'error');
+      showToast(t('load_failed'), 'error');
     }
   }
 
   function renderHeadlines(headlines) {
     const grid = document.getElementById('headlineGrid');
     if (!headlines.length) {
-      grid.innerHTML = '<div class="empty-state">표시할 뉴스가 없습니다.</div>';
+      grid.innerHTML = `<div class="empty-state">${t('no_news')}</div>`;
       return;
     }
-    grid.innerHTML = headlines.map(h => `
+    grid.innerHTML = headlines.map(h => {
+      const title = articleTitle(h);
+      const summary = articleSummary(h);
+      return `
       <div class="headline-card">
         <div class="card-meta">
           <span class="badge badge-${h.category}">${CATEGORY_LABELS[h.category] || h.category}</span>
           <span class="card-source">${h.source} · ${h.continent}</span>
         </div>
-        <h3>${h.url ? `<a href="${h.url}" target="_blank" rel="noopener">${h.title}</a>` : h.title}</h3>
-        <p>${h.summary || ''}</p>
+        <h3>${h.url ? `<a href="${h.url}" target="_blank" rel="noopener">${title}</a>` : title}</h3>
+        <p>${summary}</p>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   document.getElementById('searchBtn').addEventListener('click', loadData);

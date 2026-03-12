@@ -24,11 +24,13 @@ class ArticleService:
             "session_id": session_id,
             "article_id": article_id,
             "title": news["title"],
+            "title_en": news.get("title_en", ""),
             "category": news["category"],
             "continent": news["continent"],
             "region": news["region"],
             "source": news["source"],
             "summary": news["summary"],
+            "summary_en": news.get("summary_en", ""),
             "saved_at": datetime.now(timezone.utc).isoformat(),
         }
 
@@ -54,11 +56,13 @@ class ArticleService:
             "id": {"$toString": "$_id"},
             "article_id": 1,
             "title": 1,
+            "title_en": 1,
             "category": 1,
             "continent": 1,
             "region": 1,
             "source": 1,
             "summary": 1,
+            "summary_en": 1,
             "saved_at": 1,
         }).sort(sort_field, sort_order)
 

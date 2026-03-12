@@ -58,6 +58,26 @@ body {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
 }
 
+/* ── Language Toggle ── */
+.lang-toggle {
+  margin-left: auto;
+  display: flex; gap: 2px;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  padding: 2px;
+  border: 1px solid var(--border);
+}
+.lang-btn {
+  padding: 4px 10px; border-radius: 4px;
+  background: transparent; border: none;
+  color: var(--text-muted); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+}
+.lang-btn:hover { color: var(--text-primary); }
+.lang-btn.active {
+  background: var(--accent); color: #fff;
+}
+
 /* ── Main Content ── */
 .main-content { padding-top: var(--nav-h); height: 100vh; }
 

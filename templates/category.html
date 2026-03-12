@@ -10,7 +10,7 @@
 
   <div class="category-panel" id="listPanel">
     <div class="panel-header">
-      <h2>{{ label }}</h2>
+      <h2 data-i18n="cat_{{ category }}">{{ label }}</h2>
       <div class="article-count" id="articleCount"></div>
     </div>
     <div class="article-list" id="articleList"></div>
@@ -22,7 +22,7 @@
       <button class="detail-close" id="detailClose">&times;</button>
     </div>
     <div class="detail-body" id="detailBody"></div>
-    <button class="save-btn" id="saveBtn">기사 저장</button>
+    <button class="save-btn" id="saveBtn" data-i18n="save_article">기사 저장</button>
   </div>
 </div>
 {% endblock %}

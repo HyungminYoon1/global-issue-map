@@ -3,28 +3,28 @@
 
 {% block content %}
 <div class="my-articles-page">
-  <h1>나만의 기사</h1>
+  <h1 data-i18n="nav_my_articles">나만의 기사</h1>
 
   <div class="filter-bar">
     <select class="filter-select" id="filterCategory">
-      <option value="">전체 카테고리</option>
-      <option value="war">전쟁</option>
-      <option value="economy">경제</option>
-      <option value="disaster">자연재해</option>
-      <option value="politics">정치</option>
+      <option value="" data-i18n="all_categories">전체 카테고리</option>
+      <option value="war" data-i18n="cat_war">전쟁</option>
+      <option value="economy" data-i18n="cat_economy">경제</option>
+      <option value="disaster" data-i18n="cat_disaster">자연재해</option>
+      <option value="politics" data-i18n="cat_politics">정치</option>
     </select>
     <select class="filter-select" id="filterContinent">
-      <option value="">전체 대륙</option>
-      <option value="Asia">아시아</option>
-      <option value="Europe">유럽</option>
-      <option value="Africa">아프리카</option>
-      <option value="NorthAmerica">북미</option>
-      <option value="SouthAmerica">남미</option>
-      <option value="Oceania">오세아니아</option>
+      <option value="" data-i18n="all_continents">전체 대륙</option>
+      <option value="Asia" data-i18n="cont_asia">아시아</option>
+      <option value="Europe" data-i18n="cont_europe">유럽</option>
+      <option value="Africa" data-i18n="cont_africa">아프리카</option>
+      <option value="NorthAmerica" data-i18n="cont_north_america">북미</option>
+      <option value="SouthAmerica" data-i18n="cont_south_america">남미</option>
+      <option value="Oceania" data-i18n="cont_oceania">오세아니아</option>
     </select>
     <select class="filter-select" id="filterSort">
-      <option value="latest">최신순</option>
-      <option value="category">카테고리순</option>
+      <option value="latest" data-i18n="sort_latest">최신순</option>
+      <option value="category" data-i18n="sort_category">카테고리순</option>
     </select>
   </div>
 
