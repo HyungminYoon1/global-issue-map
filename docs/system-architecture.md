@@ -183,7 +183,7 @@ MongoDB 접근은 **PyMongo Async API**를 사용한다.
 
 ### 5.5 External News Source
 
-외부 뉴스 API를 활용하여 세계 이슈를 수집한다. 수집은 `scripts/collect_news.py` 스크립트를 통해 주기적으로 실행된다 (권장 주기: 6시간, 하루 4회).
+외부 뉴스 API를 활용하여 세계 이슈를 수집한다. 수집은 `scripts/collect_news.py` 스크립트를 통해 주기적으로 실행된다 (3시간 간격).
 
 #### 뉴스 소스 체인
 
@@ -195,9 +195,25 @@ MongoDB 접근은 **PyMongo Async API**를 사용한다.
 
 1차 소스(GDELT)에서 수집 실패 시 2차 → 3차 순서로 자동 폴백하여 안정적인 수집을 보장한다.
 
+#### GDELT 검색 전략: 키워드 + 주제(Theme) 합집합
+
+GDELT에서 뉴스를 검색할 때 **키워드 기반 검색**과 **GDELT GKG 주제(Theme) 기반 검색**을 OR(합집합)으로 결합하여 포괄적인 수집을 보장한다.
+
+* **키워드 검색**: 기사 본문/제목에 특정 단어가 포함된 기사를 검색
+* **Theme 검색**: GDELT의 자연어 처리 엔진(GKG)이 기사 내용을 분석하여 자동 태깅한 주제 코드를 기반으로 검색
+
+이 두 방식을 합집합으로 사용함으로써 키워드에 의존하는 경우 놓칠 수 있는 기사까지 수집한다.
+
+| 카테고리 | 확장 키워드 | GDELT Theme 코드 |
+|----------|------------|------------------|
+| war | war, conflict, military, attack, troops, missile, airstrike, ceasefire, insurgency, bombing, invasion, combat, artillery, battlefield, warfare, occupation | MILITARY, ARMED_CONFLICT, TERROR |
+| economy | economy, trade, inflation, GDP, market, tariff, recession, unemployment, stock, currency, debt, bankruptcy, "interest rate", "supply chain" | ECON_INFLATION, ECON_TRADE, ECON_STOCKMARKET, ECON_UNEMPLOYMENT |
+| disaster | earthquake, flood, hurricane, wildfire, tsunami, cyclone, drought, volcano, tornado, avalanche, landslide, pandemic, epidemic, famine, storm, heatwave | NATURAL_DISASTER, ENV_CLIMATECHANGE, FAMINE, HEALTH_PANDEMIC |
+| politics | election, president, parliament, diplomacy, summit, sanctions, coup, impeachment, referendum, legislation, protest, "prime minister", treaty, geopolitics | ELECTION, POLITICAL_TURMOIL, PROTEST, LEGISLATION |
+
 #### 수집 흐름
 
-1. 카테고리별(war, economy, disaster, politics) 뉴스 수집
+1. 카테고리별(war, economy, disaster, politics) 뉴스 수집 (키워드 + Theme 합집합 쿼리)
 2. 제목 유사도 60% 이상 기사 중복 제거
 3. 중요도 산정
 4. GPT(gpt-4o-mini)를 통한 한국어 번역 + 카테고리 재분류 (배치 처리)

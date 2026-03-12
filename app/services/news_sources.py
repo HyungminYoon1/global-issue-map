@@ -14,23 +14,47 @@ PIN_COLORS = {"war": "#EF4444", "economy": "#16A34A", "politics": "#EAB308", "di
 
 CATEGORY_KEYWORDS = {
     "war": {
-        "gdelt": "war OR conflict OR military OR attack OR troops OR missile",
-        "search": "war military conflict",
+        "gdelt": (
+            "war OR conflict OR military OR attack OR troops OR missile "
+            "OR airstrike OR ceasefire OR insurgency OR bombing OR invasion "
+            "OR combat OR artillery OR battlefield OR warfare OR occupation "
+            "OR theme:MILITARY OR theme:ARMED_CONFLICT OR theme:TERROR"
+        ),
+        "search": "war military conflict armed attack",
         "newsdata": "politics",
     },
     "economy": {
-        "gdelt": "economy OR trade OR inflation OR GDP OR market OR tariff OR recession",
-        "search": "economy trade market",
+        "gdelt": (
+            "economy OR trade OR inflation OR GDP OR market OR tariff "
+            "OR recession OR unemployment OR stock OR currency OR debt "
+            'OR bankruptcy OR "interest rate" OR "supply chain" '
+            "OR theme:ECON_INFLATION OR theme:ECON_TRADE "
+            "OR theme:ECON_STOCKMARKET OR theme:ECON_UNEMPLOYMENT"
+        ),
+        "search": "economy trade market finance recession",
         "newsdata": "business",
     },
     "disaster": {
-        "gdelt": "earthquake OR flood OR hurricane OR wildfire OR tsunami OR cyclone",
-        "search": "natural disaster earthquake flood",
+        "gdelt": (
+            "earthquake OR flood OR hurricane OR wildfire OR tsunami OR cyclone "
+            "OR drought OR volcano OR tornado OR avalanche OR landslide "
+            "OR pandemic OR epidemic OR famine OR storm OR heatwave "
+            "OR theme:NATURAL_DISASTER OR theme:ENV_CLIMATECHANGE "
+            "OR theme:FAMINE OR theme:HEALTH_PANDEMIC"
+        ),
+        "search": "natural disaster earthquake flood hurricane",
         "newsdata": "environment",
     },
     "politics": {
-        "gdelt": "election OR president OR parliament OR diplomacy OR summit OR sanctions",
-        "search": "politics election diplomacy",
+        "gdelt": (
+            "election OR president OR parliament OR diplomacy OR summit "
+            'OR sanctions OR coup OR impeachment OR referendum '
+            'OR legislation OR protest OR "prime minister" OR treaty '
+            "OR geopolitics "
+            "OR theme:ELECTION OR theme:POLITICAL_TURMOIL "
+            "OR theme:PROTEST OR theme:LEGISLATION"
+        ),
+        "search": "politics election diplomacy sanctions government",
         "newsdata": "politics",
     },
 }
